@@ -124,7 +124,6 @@ resource "aws_route_table_association" "rt_associations" {
   route_table_id = aws_route_table.route-table.id
 }
 
-
 resource "aws_security_group" "sg_lb" {
   vpc_id = aws_vpc.main.id
   description = "Permite HTTP desde internet"
@@ -165,18 +164,35 @@ resource "aws_security_group" "sg_ec2" {
 }
 
 
-resource "aws_instance" "servidor" {
-  ami 			 = data.aws_ami.amazon_linux.id
-  instance_type          = var.instance_type
-  vpc_security_group_ids = [aws_security_group.sg_ec2.id]
-  subnet_id = aws_subnet.private_subnet_a.id
 
-  tags = {
-    Name = "servidor-sg-web"
+resource "aws_launch_template" "launch_template" {
+  image_id                = data.aws_ami.amazon_linux.id
+  instance_type           = var.instance_type
+  vpc_security_group_ids  = [aws_security_group.sg_ec2.id]
+
+    tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = "servidor-asg"
+    }
   }
+}
 
-  lifecycle {
-    ignore_changes = [ami]
+resource "aws_autoscaling_group" "asg" {
+  min_size          = 1
+  max_size          = 2
+  desired_capacity  = 1
+
+  health_check_type         = "ELB"
+  health_check_grace_period = 300
+
+  vpc_zone_identifier = [aws_subnet.private_subnet_a.id]
+  target_group_arns = [aws_lb_target_group.target_group.arn]
+  launch_template {
+    id = aws_launch_template.launch_template.id
+    version = "$Latest"
+  
   }
 }
 
@@ -202,12 +218,6 @@ resource "aws_lb_target_group" "target_group" {
   target_health_state {
     enable_unhealthy_connection_termination = false
   }
-}
-
-resource "aws_lb_target_group_attachment" "test" {
-  target_group_arn = aws_lb_target_group.target_group.arn
-  target_id        = aws_instance.servidor.id
-  port             = 80
 }
 
 resource "aws_lb_listener" "front_end" {
