@@ -50,6 +50,13 @@ resource "aws_subnet" "public_subnet_a" {
   }
 }
 
+locals {
+  subnet_ids = {
+    "main"            = aws_subnet.main.id
+    "public_subnet_a" = aws_subnet.public_subnet_a.id
+  }
+}
+
 resource "aws_subnet" "private_subnet_a" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.2.0/24"
@@ -110,13 +117,10 @@ resource "aws_route_table" "route-table-2" {
 
 }
 
-resource "aws_route_table_association" "example" {
-  subnet_id      = aws_subnet.main.id
-  route_table_id = aws_route_table.route-table.id
-}
+resource "aws_route_table_association" "rt_associations" {
+  for_each = local.subnet_ids
 
-resource "aws_route_table_association" "example3" {
-  subnet_id      = aws_subnet.public_subnet_a.id
+  subnet_id      = each.value
   route_table_id = aws_route_table.route-table.id
 }
 
