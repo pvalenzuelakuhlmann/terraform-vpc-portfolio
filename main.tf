@@ -11,6 +11,16 @@ provider "aws" {
   region = var.region
 }
 
+data "aws_ami" "amazon_linux" {
+  owners = ["amazon"]
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+}
+
 resource "aws_vpc" "main" {
   cidr_block       = "10.0.0.0/16"
   instance_tenancy = "default"
@@ -152,13 +162,17 @@ resource "aws_security_group" "sg_ec2" {
 
 
 resource "aws_instance" "servidor" {
-  ami                    = var.ami_id
+  ami 			 = data.aws_ami.amazon_linux.id
   instance_type          = var.instance_type
   vpc_security_group_ids = [aws_security_group.sg_ec2.id]
   subnet_id = aws_subnet.private_subnet_a.id
 
   tags = {
     Name = "servidor-sg-web"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
   }
 }
 
